@@ -1,0 +1,311 @@
+# Domotec NUOS — Modbus register catalogue (development provenance)
+#
+# THIS FILE IS NOT HOME ASSISTANT CONFIGURATION. Do not paste it into
+# configuration.yaml. It is the version-controlled, source-cited record of every
+# register the manufacturer documents, plus what has (and has not) been
+# validated on the installed appliance. The integration's runtime table
+# (custom_components/nuos_modbus/registers.py) is cross-checked against this
+# file by tests/test_catalogue.py.
+#
+# Conventions: see docs/registers/README.md.
+
+schema_version: 1
+
+sources:
+  nuos_ii_2026_09:
+    title: "8.6 Betriebs-, Montage- und Planungsanleitung NUOS II 300 & 400"
+    publisher: Domotec AG
+    revision: "09/2026 (PDF CreationDate 2026-10-14)"
+    language: de
+    pdf_sha256: 8a617df6824b4f94fac46b794f2c005df96966ffaf06ed765022b4d91e959f7c
+    relevant_pages:
+      "32": "§10.3 Servicemenü — Software VT12, Modbus ID/BR/Par/RD&WR menu items"
+      "33": "§10.4 Modbus Parameter, display 005–024 (addresses 4–23)"
+      "34": "§10.4 continued, display 026–034, 104–110 (RTC), 115–118 (communication)"
+      "35": "§10.5 Datapoint ES1076 table and Modbus Protokoll"
+    applies_to_model: "NUOS II 300 / 400 (R290 generation)"
+    review_status: fully_reviewed_for_modbus   # every 'modbus' text hit + pages 32–36 read
+  nuos_400_2023_11:
+    title: "Betriebs- und Montageanleitung Warmwasser-Wärmepumpe NUOS 400"
+    publisher: Domotec AG
+    revision: "11/2023 (manualslib print, 49 PDF pages)"
+    language: de
+    pdf_sha256: 99fb6cf50ee0b2182f6a8469f450ffe3a5623a55dae46d3b1016a0c2b0bcc136
+    relevant_pages:
+      "24": "§3.4.1 Anschlussschema AC-Lüfter — VTC200 Regler; Modbus CN11 port 3 = B (Data−), port 4 = A (Data+)"
+      "32-33": "§6.2 Info-Anzeigen / Menü (T Soll … VenPause, Software VT10)"
+      "34": "§6.3 Servicemenü — Modbus ID 1-247, BR 19K2|9K6, Par Even|Odd|None, RD&WR|Only RD"
+    applies_to_model: "NUOS 400 (R134a generation, VTC200 controller, AC fan)"
+    review_status: fully_reviewed_for_modbus
+    finding: >-
+      Full-text extraction of all 49 pages (plus visual check of the image-only
+      pages) finds exactly 6 'Modbus' occurrences: 2 wiring lines (p.24) and 4
+      service-menu settings (p.34). NO register/address table, function-code
+      list, scaling or datapoint list exists in this manual. The absence is
+      genuine for this copy; completeness of the manualslib print versus the
+      original printed manual cannot be certified.
+  redisage_g13_page:
+    title: "Configuration by the Web … Documentation (Redisage/Spectra G13)"
+    pdf_sha256: b2d9538c1cff563765c4495c8aa96cb9283eee5ddc92b8d597044afa31ce712c
+    finding: "Gateway web configuration only; contains no NUOS register information and no stated maximum number of concurrent Modbus TCP clients."
+  excluded:
+    - file: NUOS-EXTRA_Bedienungsanleitung-neu-DEU.pdf
+      pdf_sha256: e8070a72feadd3cde877b309781d880f82422d44a499c79f7e2ffcbf659e5a77
+      reason: "Different product (NUOS EXTRA). Excluded by instruction DAI-IN-625; not used."
+
+installed_appliance:
+  product: "Domotec NUOS 400 B"
+  series: "100926-24"
+  manufacturer_plate_type: "VT3160 - 77638-0"
+  serial: "25090766"
+  refrigerant: "R134a, 1.4 kg"
+  tank_volume_l: 373
+  controller: VTC200
+  display_board: ES1076_1A
+  firmware: unknown            # display 'Software VTxx' not yet read on site
+  gateway:
+    device: "Redisage/Spectra G13"
+    endpoint: "192.168.1.175:1502 (Modbus TCP)"
+    serial_port: "Port 1, 19200 8E1, unit (slave) 1"
+  other_unit_on_same_gateway: "Dimplex heat pump, Port 2, unit 2 (custom integration dimplex_wpm, own pymodbus client) — must never be addressed by this integration"
+
+protocol:
+  source: {doc: nuos_ii_2026_09, page: 35, section: "10.5 Modbus Protokoll"}
+  mode: "RTU RS485"
+  start_bits: 1
+  data_bits: 8
+  stop_bits: "1 with even/odd parity, 2 with no parity"
+  function_codes_supported: [3, 4, 6, 17]   # 'Hilfsfunktion 3,4,6,17'
+  function_code_meaning:
+    3: "Read Holding Registers"
+    4: "Read Input Registers"
+    6: "Write Single Register"
+    17: "Report Server (Slave) ID"
+  function_code_per_table: unknown   # the manual does NOT state which table uses FC03 vs FC04
+  termination: "120 Ω between A and B at first and last device (total 60 Ω)"
+  warning: "Other Modbus parameters may be visible; they must not be changed (warranty exclusion)."
+
+address_convention:
+  manual_column: "Modbus Adresse"
+  observed_pattern: "For §10.4, Modbus Adresse = display number − 1 (e.g. 005.T_soll → 4)."
+  assumed_ha_mapping: "manual address = Modbus PDU address (0-based), i.e. Home Assistant 'address' value"
+  status: unverified
+  evidence:
+    - "HA YAML hub nuos_g13: FC03, address 8 → raw 12 repeatedly (2026-10-20, DAI-OUT-623); same raw value as the October QModMaster commissioning read at 'address 8'."
+    - "Same raw value in both tools is consistent with both using the PDU address, but does not prove it."
+
+register_space_inference:
+  status: inference_not_validated
+  reasoning:
+    - "The §10.4 parameter table and the §10.5 datapoint table claim overlapping addresses with different meanings (e.g. 8 = 009.Start_HP_Hour and 8 = T2). They therefore cannot share one register space."
+    - "Only FC03 and FC04 are listed for reading, and FC06 (write single holding register) is listed; §10.4 parameters carry write semantics (118.Modbus Allow Write)."
+    - "Hence: §10.4 parameters are most probably HOLDING registers (FC03 read, FC06 write) and §10.5 datapoints most probably INPUT registers (FC04)."
+    - "Under this inference the live FC03 address 8 raw 12 would be 009.Start_HP_Hour = 12 (valid range 0–23), not tank temperature. Under the opposite assignment it would be T2 = 1.2 °C, which is implausible for a heated tank."
+  how_to_validate: "Owner reads display 'Start HP hour' (timer start hour) and T2/'T Wasser' at a recorded time; then a separately approved single FC04 read of input address 8. See docs/VALIDATION.md."
+
+validation_states:
+  not_validated: "Documented by a source; never read on the installed appliance."
+  read_ok_semantics_unvalidated: "A read succeeded on the installed appliance; meaning/scale not confirmed."
+  validated: "Value confirmed against an independent reference on the installed appliance."
+
+summary:
+  documented_addresses_total: 56
+  documented_table_rows_total: 57          # 016.WP_LS has an AC and an EC row on the same address
+  by_table:
+    "10.4 parameters (005–034)": 29        # addresses 4–23 and 25–33; 24 (display 025) is not documented
+    "10.4 RTC (104–110)": 7
+    "10.4 communication (115–118)": 4
+    "10.5 ES1076 datapoints": 16
+  validated_semantics_on_installed_appliance: 0
+  read_ok_semantics_unvalidated_on_installed_appliance: 1   # FC03 address 8 (raw 12)
+  undocumented_gaps: "addresses 0–3 and 24 in the parameter space; 34–102, 110–113, 118+ undocumented. Datapoint addresses 2–6 and 20–118 undocumented. Not to be scanned."
+
+# ---------------------------------------------------------------------------
+# Field legend per register (see README for full definitions)
+#   key            stable identifier used by the integration
+#   display        manual display id / label
+#   address        manual 'Modbus Adresse'
+#   space          candidate register space (holding|input) — inference, see above
+#   fc_read        candidate read function code
+#   fc_write       documented write function code (null = not writable per source)
+#   type           wire type (16-bit register); signedness never stated by source
+#   decimals       manual 'Dezimal' column (value = raw / 10^decimals)
+#   offset         manual 'Offset' column
+#   unit, min, max as printed
+#   enum           value → label as printed (German labels kept, English added)
+#   sentinel       null/sentinel handling (none documented anywhere)
+#   ha             proposed Home Assistant entity
+#   validation     on-site validation state
+#   anomalies      source inconsistencies, reproduced not corrected
+# ---------------------------------------------------------------------------
+
+defaults:
+  sentinel: none_documented
+  model_compatibility:
+    nuos_ii_r290: documented
+    nuos_400_b_r134a_vtc200: undocumented_candidate
+  validation: not_validated
+
+parameters:
+  # ---- §10.4, PDF page 33 ----
+  - {key: t_soll, display: "005.T_soll", name_en: "Hot water setpoint", address: 4, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: t_min, display: "006.T_min", name_en: "Backup heater threshold (Tmin)", address: 5, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: t2_min, display: "007.T2_min", name_en: "Frost/absence threshold (T2 min)", address: 6, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: timer, display: "008.Timer", name_en: "Timer enabled", address: 7, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", min: 0, max: 1, enum: {0: "AUS (off)", 1: "AN (on)"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: start_hp_hour, display: "009.Start_HP_Hour", name_en: "Heat pump timer start hour", address: 8, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "h", min: 0, max: 23, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic},
+     validation: read_ok_semantics_unvalidated,
+     onsite_evidence: "FC03 PDU address 8 returned raw 12 on every poll (HA YAML pilot, 2026-10-20, DAI-OUT-623). Within 0–23. Meaning not confirmed."}
+  - {key: start_hp_min, display: "010.Start_HP_Min", name_en: "Heat pump timer start minute", address: 9, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "min", min: 0, max: 59, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: stop_hp_hour, display: "011.Stop_HP_Hour", name_en: "Heat pump timer stop hour", address: 10, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "h", min: 0, max: 23, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: stop_hp_min, display: "012.Stop_HP_Min", name_en: "Heat pump timer stop minute", address: 11, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "min", min: 0, max: 59, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: operating_mode, display: "013.H_pump (betr.Art)", name_en: "Operating mode", address: 12, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 5,
+     enum: {0: "Aus (off)", 1: "Nur WP (heat pump only)", 2: "Nur EL (electric only)", 3: "WP + EL", 4: "Kessel (boiler)", 5: "WP + Kessel"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: enum, enabled_default: false}}
+  - {key: t_legio, display: "014.T_Legio", name_en: "Legionella protection", address: 13, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2,
+     enum: {0: "Aus (off)", 1: "60 °C", 2: "65 °C"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: t_min_rl, display: "015.T_min_RL", name_en: "T min RL", address: 14, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 20, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: wp_ls, display: "016.WP_LS (FanOper)*", name_en: "Fan speed in heat pump operation", address: 15, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null,
+     variants: [
+       {fan: AC, min: 0, max: 1, enum: {0: "AC tief (low)", 1: "AC hoch (high)"}},
+       {fan: EC, min: 0, max: 3, enum: {0: "Aus (off)", 1: "EC tief (low)", 2: "EC mittel (medium)", 3: "EC hoch (high)"}}],
+     min: 0, max: 3, source: {doc: nuos_ii_2026_09, page: 33},
+     anomalies: ["Two table rows share address 15; interpretation depends on 030.VrntTyp (AC/EC). Installed unit documented as AC fan (2023 manual p.34)."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: kwl, display: "0.17.KWL (FanCon)*", name_en: "Standby (ventilation) fan mode", address: 16, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2,
+     enum: {0: "Aus (off)", 1: "EC tief (low)", 2: "EC mittel (medium)", 3: "EC hoch (high)"}, source: {doc: nuos_ii_2026_09, page: 33},
+     anomalies: ["Max printed as 2 but enumeration lists 0–3.", "Display id printed as '0.17' (typo for 017)."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: pv_mode, display: "018.PV_Modus", name_en: "PV / Smart Grid mode", address: 17, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 3,
+     enum: {0: "Aus (off)", 1: "Nur WP (heat pump only)", 2: "Nur EL (electric only)", 3: "WP + EL"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: t_pv_wp, display: "019.T.PV_WP", name_en: "PV setpoint heat pump", address: 18, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: t_pv_el, display: "020.T.PV_EL", name_en: "PV setpoint electric", address: 19, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: holiday, display: "021.URLAUB", name_en: "Holiday mode", address: 20, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 5,
+     enum: {0: "Aus (off)", 1: "1 Woche (1 week)", 2: "2 Wochen (2 weeks)", 3: "3 Wochen (3 weeks)", 4: "3 Tage (3 days)", 5: "Manuell (manual)"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: absence_days, display: "022.Abw.Tage", name_en: "Absence days", address: 21, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "d", min: 1, max: 99, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: boost, display: "023.BOOST", name_en: "Boost", address: 22, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", min: 0, max: 1, enum: {0: "Aus (off)", 1: "An (on)"}, source: {doc: nuos_ii_2026_09, page: 33},
+     ha: {platform: binary_sensor, enabled_default: false}}
+  - {key: fan_pause, display: "024.VenPause*", name_en: "Fan pause", address: 23, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 6,
+     enum_as_printed: ["0 = Aus", "1 = 30 m / 15 s", "1 = 30 m / 30 s", "1 = 60 m / 15 s", "1 = 60 m / 30 s", "1 = 90 m / 15 s", "1 = 90 m / 30 s"],
+     enum_probable: {0: "Aus (off)", 1: "30 m / 15 s", 2: "30 m / 30 s", 3: "60 m / 15 s", 4: "60 m / 30 s", 5: "90 m / 15 s", 6: "90 m / 30 s"},
+     source: {doc: nuos_ii_2026_09, page: 33},
+     anomalies: ["Enumeration printed with '1 =' on six rows; probable 1–6 by order and max=6 (inference)."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  # ---- §10.4 continued, PDF page 34 ----
+  - {key: language, display: "026.Sprache", name_en: "Display language", address: 25, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 2, offset: 2, unit: null, min: 0, max: 10,
+     enum: {0: Englisch, 1: Deutsch, 2: Frankreich, 3: Holland, 4: Spanien, 5: Italien, 6: Dänemark, 7: Schweden, 8: Norwegen, 9: Polen, 10: Slovenien, 11: Kroatien}, source: {doc: nuos_ii_2026_09, page: 34},
+     anomalies: ["Dezimal=2 and Offset=2 are unexplained for an enumeration.", "Max printed as 10 but enumeration lists 0–11."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: defrost_type, display: "0.27.Abtauart", name_en: "Defrost type", address: 26, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2,
+     enum: {0: Air, 1: Gas, 2: "Tmin RF"}, source: {doc: nuos_ii_2026_09, page: 34},
+     do_not_change: "Manual: 'Bitte nicht verändern!'",
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: anode, display: "028.Anode*", name_en: "Signal anode monitoring", address: 27, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", min: 0, max: 1, enum: {0: "Aus (off)", 1: "An (on)"}, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: t_max, display: "029.T_max", name_en: "Maximum hot water temperature", address: 28, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 62, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
+  - {key: fan_type, display: "030.VrntTyp*", name_en: "Fan type", address: 29, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 1, enum: {0: AC, 1: EC}, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: ec_ls1, display: "031.EC_LS1*", name_en: "EC fan level 1", address: 30, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "%", min: 0, max: 100, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: ec_ls2, display: "032.EC_LS2*", name_en: "EC fan level 2", address: 31, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "%", min: 0, max: 100, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: ec_ls3, display: "033.EC_LS3*", name_en: "EC fan level 3", address: 32, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "%", min: 0, max: 100, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: legionella_auto_days, display: "034.Legionel_Auto_Funktion", name_en: "Legionella auto interval", address: 33, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "d", min: 3, max: 14, source: {doc: nuos_ii_2026_09, page: 34},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+
+rtc:
+  # §10.4, PDF page 34. Unit/min/max/decimals/offset printed as '-' (not documented).
+  - {key: rtc_second, display: "104.RTC_Sek", address: 103, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: rtc_minute, display: "105.RTC_Min", address: 104, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: rtc_hour, display: "106.RTC_Stunden", address: 105, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: rtc_weekday, display: "107.RTC_Tag", address: 106, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic},
+     anomalies: ["'Tag' vs 'Datum': weekday vs day-of-month is inferred, not stated; numbering base unknown."]}
+  - {key: rtc_date, display: "108.RTC_Datum", address: 107, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: rtc_month, display: "109.RTC_Monat", address: 108, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: rtc_year, display: "110.RTC_Jahr", address: 109, space: holding, fc_read: 3, fc_write: unknown, type: uint16, decimals: null, offset: null, unit: null, min: null, max: null, source: {doc: nuos_ii_2026_09, page: 34}, ha: {platform: sensor, enabled_default: false, entity_category: diagnostic},
+     anomalies: ["Encoding (2- or 4-digit year, BCD or binary) not documented."]}
+
+communication:
+  # §10.4, PDF page 34. Changing these can cut the gateway link — never written by this integration.
+  - {key: modbus_address, display: "115.Modbus Adresse 1-247", address: 114, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 1, max: 247, source: {doc: nuos_ii_2026_09, page: 34}, write_forbidden_by_integration: true,
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: modbus_baud, display: "116.Modbus Baudrate", address: 115, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 1, max: 2, enum: {1: "19200", 2: "9600"}, source: {doc: nuos_ii_2026_09, page: 34}, write_forbidden_by_integration: true,
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: modbus_parity, display: "117.Modbus Parität", address: 116, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2, enum: {0: NONE, 1: ODD, 2: EVEN}, source: {doc: nuos_ii_2026_09, page: 34}, write_forbidden_by_integration: true,
+     ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
+  - {key: modbus_allow_write, display: "118.Modbus Allow Write", address: 117, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 1, enum: {1: "Allow write"}, source: {doc: nuos_ii_2026_09, page: 34}, write_forbidden_by_integration: true,
+     anomalies: ["Only value 1 is described; 0 presumably = read only (2023 manual p.34: 'RD&WR oder Only RD')."],
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+
+datapoints:
+  # §10.5 'Datapoint ES1076', PDF page 35. Min/max not printed. Columns: Einheit, Modbus Adresse, Dezimal-Nummer, Offset.
+  # Not writable per source (read-only datapoints). Register space: input (FC04) by inference — see register_space_inference.
+  - {key: di1_pressure_switch, display: "DI1_Pressostat", name_en: "Pressure switch input", address: 0, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: di2_pv_input, display: "DI2_Solcelle (PV)", name_en: "PV contact input", address: 1, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, enabled_default: false}}
+  - {key: t1_evaporator, display: "T1 (Verdampfer-Temperatur)", name_en: "Evaporator temperature (T1)", address: 7, space: input, fc_read: 4, fc_write: null, type: "int16 (signedness assumed — sub-zero evaporator temperatures expected; not stated by source)", decimals: 1, offset: 0, unit: "°C", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: sensor, device_class: temperature, state_class: measurement, enabled_default: false}}
+  - {key: t2_tank, display: "T2 (Speicher-Temperatur)", name_en: "Tank temperature (T2)", address: 8, space: input, fc_read: 4, fc_write: null, type: "int16 (signedness assumed)", decimals: 1, offset: 0, unit: "°C", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: sensor, device_class: temperature, state_class: measurement, enabled_default: false},
+     onsite_evidence: "NOT read. FC04 input address 8 has never been read. The FC03 holding address 8 raw 12 must not be used as T2 (1.2 °C implausible)."}
+  - {key: relay1_compressor, display: "Relay1_Kompressor", name_en: "Compressor relay", address: 9, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, device_class: running, enabled_default: false}}
+  - {key: relay2_electric_heater, display: "Relay2_Elpatron", name_en: "Electric heater relay", address: 10, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, device_class: running, enabled_default: false}}
+  - {key: relay3_boiler, display: "Relay3_Kedel", name_en: "Boiler relay", address: 11, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, device_class: running, enabled_default: false, entity_category: diagnostic}}
+  - {key: relay4_solenoid_valve, display: "Relay4_Magnetventil", name_en: "Solenoid valve relay", address: 12, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: relay6_condenser, display: "Relay6_Kondensator", name_en: "Condenser relay", address: 13, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     anomalies: ["Relay5 is absent from the table."],
+     ha: {platform: binary_sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: relay7_fan, display: "Relay7_Ventilator", name_en: "Fan relay", address: 14, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: binary_sensor, device_class: running, enabled_default: false}}
+  - {key: da0_output, display: "DA0_0-10 V (nur für Installateur), (1000 = 10 V / 500 = 5 V), Für EC Lüfter", name_en: "0–10 V output (EC fan)", address: 15, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "V", source: {doc: nuos_ii_2026_09, page: 35},
+     anomalies: ["Dezimal printed as 0, but note '1000 = 10 V' implies raw × 0.01 V. Exposed raw only."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: status_bits, display: "Status", name_en: "Status (binary word)", address: 16, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "Binär", source: {doc: nuos_ii_2026_09, page: 35},
+     bitfield: unknown,
+     related_display_semantics: "Display 'Status' values AUS, Standby, WW, Le. aktiv, Boost, Ferien, Nur WP/Nur EL/WP+EL (PV), Def.Gas/Def.Luft/Abt.Ende, FEHLER (NUOS II p.30; 2023 manual p.32). Mapping of bits to these states is NOT documented.",
+     anomalies: ["Manual: 'translation of data bits requires external devices to support this function' — no bit table given."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: rest_days, display: "Rest_Days", name_en: "Remaining absence days", address: 17, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "d", source: {doc: nuos_ii_2026_09, page: 35},
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
+  - {key: unit_alarm_bits, display: "Unit_Alarm", name_en: "Unit alarm (binary word)", address: 18, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "Binär", source: {doc: nuos_ii_2026_09, page: 35},
+     bitfield: unknown,
+     related_display_semantics: "Display messages 1–11 (manual ch. 12; information messages 8, 9, 10; sensor faults 1, 2; faults 5, 6). Mapping of bits to message numbers is NOT documented.",
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+  - {key: t3, display: "T3", name_en: "Temperature T3", address: 19, space: input, fc_read: 4, fc_write: null, type: "int16 (signedness assumed)", decimals: 1, offset: 0, unit: "°C", source: {doc: nuos_ii_2026_09, page: 35},
+     anomalies: ["Sensor location of T3 not described in the Modbus table."],
+     ha: {platform: sensor, device_class: temperature, state_class: measurement, enabled_default: false}}
+  - {key: fw_version, display: "FW_Version", name_en: "Firmware version", address: 119, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 1, offset: 0, unit: "Binär", source: {doc: nuos_ii_2026_09, page: 35},
+     anomalies: ["Unit 'Binär' with Dezimal 1; relation to display 'Software VT12' encoding unknown."],
+     ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
+
+pilot_diagnostic:
+  # The only register read on the installed appliance. Exposed by the integration
+  # as an enabled, raw, unit-less diagnostic. Never relabelled as temperature.
+  key: raw_holding_8
+  read: {fc: 3, address: 8, count: 1}
+  observed: {raw: 12, polls: ">=3", date: "2026-10-20", via: "HA YAML modbus hub nuos_g13 (DAI-OUT-623)"}
+  candidate_meanings:
+    - {meaning: "009.Start_HP_Hour = 12 h", plausibility: "consistent (0–23)", requires: "§10.4 applies to VTC200 and parameters are holding registers"}
+    - {meaning: "T2 = 1.2 °C", plausibility: "implausible for a heated tank", requires: "§10.5 datapoints are holding registers"}
+  ha: {platform: sensor, enabled_default: true, entity_category: diagnostic, name: "Holding register 8 raw (unverified)"}

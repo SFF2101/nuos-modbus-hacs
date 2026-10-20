@@ -1,0 +1,59 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Domotec NUOS via Modbus TCP gateway",
+        "description": "Read-only. The connection test reads one holding register (address 8). Nothing is ever written.",
+        "data": {
+          "host": "Gateway host",
+          "port": "Gateway port",
+          "unit_id": "NUOS Modbus unit id",
+          "model": "Model"
+        },
+        "data_description": {
+          "unit_id": "Unit (slave) id of the NUOS on the gateway's serial port. Never the id of another device on the same gateway.",
+          "model": "NUOS 400 B (VTC200) has no published register map; candidate entities stay disabled until validated."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No Modbus answer from the unit.",
+      "endpoint_in_use": "This gateway endpoint is already in use by another integration with different link settings.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This gateway endpoint and unit are already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "NUOS polling and addressing",
+        "data": {
+          "scan_interval": "Poll interval (seconds)",
+          "datapoint_register_space": "Register space of ES1076 datapoints",
+          "address_offset": "Address correction for catalogue registers"
+        },
+        "data_description": {
+          "datapoint_register_space": "Unvalidated. The manual lists FC03 and FC04 without saying which table uses which. Input (FC04) is the inferred default.",
+          "address_offset": "Unvalidated. 0 assumes the manual's 'Modbus Adresse' is the PDU address. Does not affect the fixed holding register 8 diagnostic."
+        }
+      }
+    }
+  },
+  "selector": {
+    "datapoint_register_space": {
+      "options": {
+        "input": "Input registers (FC04)",
+        "holding": "Holding registers (FC03)"
+      }
+    },
+    "address_offset": {
+      "options": {
+        "minus_1": "-1",
+        "zero": "0 (manual address = PDU address)",
+        "plus_1": "+1"
+      }
+    }
+  }
+}
