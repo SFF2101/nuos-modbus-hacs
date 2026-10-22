@@ -52,6 +52,13 @@ class Register:
     maximum: int | None = None
     raw_only: bool = False
     """Expose the raw register value only (scaling/meaning ambiguous in source)."""
+    display_values: dict[int, str] | None = None
+    """Raw value -> text shown on the installed unit's own display (VTC200, VT15).
+
+    Only codes observed on the physical display are listed (owner photos,
+    2026-10-22, DAI-IN-639). Any other raw value has no display text. The entity
+    state stays the raw value; the text is an extra attribute.
+    """
     diagnostic: bool = True
     enabled_default: bool = False
     writable_documented: bool = False
@@ -147,7 +154,15 @@ REGISTERS: tuple[Register, ...] = (
         options={0: "off", 1: "60_c", 2: "65_c"},
     ),
     _p("t_min_rl", "T min RL (candidate)", 14, minimum=5, maximum=20, **TEMP),
-    _p("wp_ls", "Fan speed in operation raw (candidate)", 15, raw_only=True, minimum=0, maximum=3),
+    _p(
+        "wp_ls",
+        "Fan speed in operation raw (candidate)",
+        15,
+        raw_only=True,
+        display_values={1: "High"},
+        minimum=0,
+        maximum=3,
+    ),
     _p("kwl", "Standby fan mode raw (candidate)", 16, raw_only=True, minimum=0, maximum=2),
     _p(
         "pv_mode",
@@ -171,10 +186,35 @@ REGISTERS: tuple[Register, ...] = (
     ),
     _p("absence_days", "Absence days (candidate)", 21, unit=D, minimum=1, maximum=99),
     _p("boost", "Boost (candidate)", 22, platform="binary_sensor", diagnostic=False, minimum=0, maximum=1),
-    _p("fan_pause", "Fan pause raw (candidate)", 23, raw_only=True, minimum=0, maximum=6),
+    _p(
+        "fan_pause",
+        "Fan pause raw (candidate)",
+        23,
+        raw_only=True,
+        display_values={2: "30m/30s"},
+        minimum=0,
+        maximum=6,
+    ),
     # §10.4 parameters, page 34
-    _p("language", "Display language raw (candidate)", 25, raw_only=True, minimum=0, maximum=10),
-    _p("defrost_type", "Defrost type raw (candidate)", 26, raw_only=True, write_forbidden=True, minimum=0, maximum=2),
+    _p(
+        "language",
+        "Display language raw (candidate)",
+        25,
+        raw_only=True,
+        display_values={0: "English"},
+        minimum=0,
+        maximum=10,
+    ),
+    _p(
+        "defrost_type",
+        "Defrost type raw (candidate)",
+        26,
+        raw_only=True,
+        display_values={1: "Gas"},
+        write_forbidden=True,
+        minimum=0,
+        maximum=2,
+    ),
     _p("anode", "Signal anode monitoring (candidate)", 27, platform="binary_sensor", minimum=0, maximum=1),
     _p("t_max", "Maximum hot water temperature (candidate)", 28, minimum=5, maximum=62, **TEMP),
     _p(
@@ -250,7 +290,7 @@ REGISTERS: tuple[Register, ...] = (
     _d("relay6_condenser", "Condenser relay (candidate)", 13, platform="binary_sensor"),
     _d("relay7_fan", "Fan running (candidate)", 14, platform="binary_sensor", device_class="running", diagnostic=False),
     _d("da0_output", "0-10 V output raw (candidate)", 15, raw_only=True),
-    _d("status_bits", "Status word raw (candidate)", 16, raw_only=True),
+    _d("status_bits", "Status word raw (candidate)", 16, raw_only=True, display_values={2: "Standby"}),
     _d("rest_days", "Remaining absence days (candidate)", 17, unit=D),
     _d("unit_alarm_bits", "Alarm word raw (candidate)", 18, raw_only=True),
     _d("t3", "Temperature T3 (candidate)", 19, decimals=1, signed=True, state_class="measurement", diagnostic=False, **TEMP),

@@ -44,3 +44,5 @@ DEFAULT_ADDRESS_OFFSET: Final = 0
 VALIDATION_NOT_VALIDATED: Final = "not_validated"
 VALIDATION_READ_OK: Final = "read_ok_semantics_unvalidated"
 VALIDATION_VALIDATED: Final = "validated"
+
+DISPLAY_EVIDENCE: Final = "owner photos of the unit display, 2026-10-22 (DAI-IN-639)"

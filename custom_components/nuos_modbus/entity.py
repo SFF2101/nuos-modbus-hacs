@@ -9,7 +9,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import NuosConfigEntry, unique_id_for
-from .const import CONF_MODEL, DOMAIN, MANUFACTURER, MODEL_NAMES
+from .const import CONF_MODEL, DISPLAY_EVIDENCE, DOMAIN, MANUFACTURER, MODEL_NAMES
 from .coordinator import NuosCoordinator
 from .registers import Register
 
@@ -62,4 +62,11 @@ class NuosEntity(CoordinatorEntity[NuosCoordinator]):
         }
         if self.register.source_page is not None:
             attrs["source"] = f"NUOS II manual 09/2026 p.{self.register.source_page}"
+        if self.register.display_values is not None:
+            raw = self.raw
+            # Only codes seen on the unit's own display; anything else stays None.
+            attrs["display_text"] = (
+                None if raw is None else self.register.display_values.get(raw)
+            )
+            attrs["display_text_evidence"] = DISPLAY_EVIDENCE
         return attrs

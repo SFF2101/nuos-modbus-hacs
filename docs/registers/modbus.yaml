@@ -174,7 +174,7 @@ parameters:
      ha: {platform: sensor, device_class: enum, enabled_default: false, entity_category: diagnostic}}
   - {key: t_min_rl, display: "015.T_min_RL", name_en: "T min RL", address: 14, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "°C", min: 5, max: 20, source: {doc: nuos_ii_2026_09, page: 33},
      ha: {platform: sensor, device_class: temperature, enabled_default: false, entity_category: diagnostic}}
-  - {key: wp_ls, display: "016.WP_LS (FanOper)*", name_en: "Fan speed in heat pump operation", address: 15, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null,
+  - {key: wp_ls, display_validated: {1: "High"}, display: "016.WP_LS (FanOper)*", name_en: "Fan speed in heat pump operation", address: 15, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null,
      variants: [
        {fan: AC, min: 0, max: 1, enum: {0: "AC tief (low)", 1: "AC hoch (high)"}},
        {fan: EC, min: 0, max: 3, enum: {0: "Aus (off)", 1: "EC tief (low)", 2: "EC mittel (medium)", 3: "EC hoch (high)"}}],
@@ -199,18 +199,18 @@ parameters:
      ha: {platform: sensor, enabled_default: false, entity_category: diagnostic}}
   - {key: boost, display: "023.BOOST", name_en: "Boost", address: 22, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: "An/Aus", min: 0, max: 1, enum: {0: "Aus (off)", 1: "An (on)"}, source: {doc: nuos_ii_2026_09, page: 33},
      ha: {platform: binary_sensor, enabled_default: false}}
-  - {key: fan_pause, display: "024.VenPause*", name_en: "Fan pause", address: 23, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 6,
+  - {key: fan_pause, display_validated: {2: "30m/30s"}, display: "024.VenPause*", name_en: "Fan pause", address: 23, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 6,
      enum_as_printed: ["0 = Aus", "1 = 30 m / 15 s", "1 = 30 m / 30 s", "1 = 60 m / 15 s", "1 = 60 m / 30 s", "1 = 90 m / 15 s", "1 = 90 m / 30 s"],
      enum_probable: {0: "Aus (off)", 1: "30 m / 15 s", 2: "30 m / 30 s", 3: "60 m / 15 s", 4: "60 m / 30 s", 5: "90 m / 15 s", 6: "90 m / 30 s"},
      source: {doc: nuos_ii_2026_09, page: 33},
      anomalies: ["Enumeration printed with '1 =' on six rows; probable 1–6 by order and max=6 (inference)."],
      ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
   # ---- §10.4 continued, PDF page 34 ----
-  - {key: language, display: "026.Sprache", name_en: "Display language", address: 25, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 2, offset: 2, unit: null, min: 0, max: 10,
+  - {key: language, display_validated: {0: "English"}, display: "026.Sprache", name_en: "Display language", address: 25, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 2, offset: 2, unit: null, min: 0, max: 10,
      enum: {0: Englisch, 1: Deutsch, 2: Frankreich, 3: Holland, 4: Spanien, 5: Italien, 6: Dänemark, 7: Schweden, 8: Norwegen, 9: Polen, 10: Slovenien, 11: Kroatien}, source: {doc: nuos_ii_2026_09, page: 34},
      anomalies: ["Dezimal=2 and Offset=2 are unexplained for an enumeration.", "Max printed as 10 but enumeration lists 0–11."],
      ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
-  - {key: defrost_type, display: "0.27.Abtauart", name_en: "Defrost type", address: 26, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2,
+  - {key: defrost_type, display_validated: {1: "Gas"}, display: "0.27.Abtauart", name_en: "Defrost type", address: 26, space: holding, fc_read: 3, fc_write: 6, type: uint16, decimals: 0, offset: 0, unit: null, min: 0, max: 2,
      enum: {0: Air, 1: Gas, 2: "Tmin RF"}, source: {doc: nuos_ii_2026_09, page: 34},
      do_not_change: "Manual: 'Bitte nicht verändern!'",
      ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
@@ -281,7 +281,7 @@ datapoints:
   - {key: da0_output, display: "DA0_0-10 V (nur für Installateur), (1000 = 10 V / 500 = 5 V), Für EC Lüfter", name_en: "0–10 V output (EC fan)", address: 15, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "V", source: {doc: nuos_ii_2026_09, page: 35},
      anomalies: ["Dezimal printed as 0, but note '1000 = 10 V' implies raw × 0.01 V. Exposed raw only."],
      ha: {platform: sensor, enabled_default: false, entity_category: diagnostic, raw_only: true}}
-  - {key: status_bits, display: "Status", name_en: "Status (binary word)", address: 16, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "Binär", source: {doc: nuos_ii_2026_09, page: 35},
+  - {key: status_bits, display_validated: {2: "Standby"}, display: "Status", name_en: "Status (binary word)", address: 16, space: input, fc_read: 4, fc_write: null, type: uint16, decimals: 0, offset: 0, unit: "Binär", source: {doc: nuos_ii_2026_09, page: 35},
      bitfield: unknown,
      related_display_semantics: "Display 'Status' values AUS, Standby, WW, Le. aktiv, Boost, Ferien, Nur WP/Nur EL/WP+EL (PV), Def.Gas/Def.Luft/Abt.Ende, FEHLER (NUOS II p.30; 2023 manual p.32). Mapping of bits to these states is NOT documented.",
      anomalies: ["Manual: 'translation of data bits requires external devices to support this function' — no bit table given."],
