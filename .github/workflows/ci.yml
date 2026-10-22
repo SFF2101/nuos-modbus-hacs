@@ -17,7 +17,23 @@ jobs:
         with:
           python-version: "3.14"
       - run: pip install -r requirements_test.txt
-      - run: pytest -q
+      - run: pytest -q --junitxml=junit.xml
+      - name: Publish test summary as annotations
+        if: always()
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          import homeassistant.const as c
+          try:
+              root = ET.parse("junit.xml").getroot()
+              suite = root if root.tag == "testsuite" else root.find("testsuite")
+              a = suite.attrib
+              total, fail, err, skip = (int(a.get(k, 0)) for k in ("tests", "failures", "errors", "skipped"))
+              msg = f"tests={total} passed={total - fail - err - skip} failures={fail} errors={err} skipped={skip}"
+          except Exception as exc:  # no report produced
+              msg = f"no junit report: {exc!r}"
+          print(f"::notice title=pytest::{msg} python={sys.version.split()[0]} homeassistant={c.__version__}")
+          PY
 
   lint:
     runs-on: ubuntu-latest
