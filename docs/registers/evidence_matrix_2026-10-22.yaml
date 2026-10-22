@@ -1,0 +1,827 @@
+schema_version: 1
+title: NUOS VTC200 evidence matrix
+generated: '2026-10-22'
+dai: DAI-IN-636
+baseline_commit: 85e6c1ad1a4a17c69fd08f6bcbb652337b5898fa
+evidence_window: 2026-10-20T20:42+02:00 .. 2026-10-22T12:59+02:00 (HA recorder, read-only)
+legend:
+  PROVEN: behaviour or value agrees with an independent reference (power meter, gateway config, real time) on the installed
+    unit
+  PLAUSIBLE: consistent with the manufacturer table and live behaviour; no independent reference
+  UNKNOWN: no usable evidence
+method: Live HA states/history of the 57 nuos_modbus entities and the NUOS smart-plug power sensor; no new Modbus traffic;
+  manufacturer text = docs/registers/modbus.yaml (NUOS II 09/2026). The 2023 NUOS 400 manual has no register table.
+findings:
+- 'Register-space inference CONFIRMED: parameters are holding registers (FC03), datapoints are input registers (FC04). Holding
+  8 = 12 is Start_HP_Hour, input 8 = T2 tank = 55.5 C.'
+- 'Address convention CONFIRMED for datapoints: manual address = PDU address (offset 0): input 9 tracks the compressor (power
+  meter), input 7/8 track the evaporator/tank thermal response.'
+- Four historical failed updates (20 Oct 21:08, 21 Oct 04:55, 19:21, 19:41, each a 2 min gap) are past events; the current
+  state is healthy. last_error=null does not mean no history.
+- No label was proven wrong. T3 (input 19) = 0.0 constant is not behaving as a temperature (UNKNOWN). RTC date/year show 8/2/2000
+  while time-of-day runs.
+- 'Status word: 4 = compressor run, 2 = idle (observed); no bit table, so not decoded. Alarm word 0 throughout.'
+pending_owner_display_reading:
+  needed: optional, one reading
+  items:
+  - Software VTxx (service menu)
+  - T Wasser (tank)
+  - Timer on/off and Start HP hour
+  - Betr.Art, T Soll, T max
+  - Clock (time/date) if shown
+  - Status line text
+  note: Would upgrade T1/T2/mode/setpoints from PROVEN-behaviour/PLAUSIBLE to calibrated-validated.
+entries:
+- key: t2_tank
+  address: 8
+  space: input
+  function_code: 4
+  decimals: 1
+  label: Tank temperature (T2)
+  manual_display: T2 (Speicher-Temperatur)
+  manual_page: 35
+  observed_raw_snapshot: 555
+  status: PROVEN
+  evidence: FC04 input 8 = 555 raw -> 55.5 C (scale /10 correct). Over 3 compressor runs (20-22 Oct) it rose 52.1->56.0 C
+    in 2.6-3.2 h and cooled 55.9->52.1 C over 17 h idle (~0.2 K/h standing loss). FC03 holding 8 (=12) is a different quantity.
+    Absolute calibration vs the display 'T Wasser' is PENDING.
+  confidence: high
+  change_required: none (label correct; absolute accuracy pending display)
+- key: t1_evaporator
+  address: 7
+  space: input
+  function_code: 4
+  decimals: 1
+  label: Evaporator temperature (T1)
+  manual_display: T1 (Verdampfer-Temperatur)
+  manual_page: 35
+  observed_raw_snapshot: 116
+  status: PROVEN
+  evidence: 'FC04 input 7 = 11.6 C idle (median 12.1, range 10.6-13.2); during compressor runs 5.1-10.4 C (median 8.4): evaporator
+    cools when the compressor runs, as expected. Absolute accuracy PENDING.'
+  confidence: high
+  change_required: none
+- key: relay1_compressor
+  address: 9
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Compressor relay
+  manual_display: Relay1_Kompressor
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PROVEN
+  evidence: FC04 input 9. Three ON windows (1h32, 2h36, 3h10) coincide with independent smart-plug power 600-694 W; OFF state
+    ~1.0-1.4 W. 14 transitions, no contradiction. Status word 4 during ON, 2 otherwise.
+  confidence: high
+  change_required: none (label correct)
+- key: status_bits
+  address: 16
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Status (binary word)
+  manual_display: Status
+  manual_page: 35
+  observed_raw_snapshot: 2
+  status: PLAUSIBLE
+  evidence: 'FC04 input 16: value 4 whenever relay1 ON, 2 otherwise (14 transitions, 3 runs); never any other value. Suggests
+    bit 0x0004 = compressor/heating active, 0x0002 = idle/standby. Bit meaning NOT in the manual and not proven against display
+    states.'
+  confidence: medium
+  change_required: none now; do NOT decode bits until display 'Status' is recorded alongside raw
+- key: relay7_fan
+  address: 14
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Fan relay
+  manual_display: Relay7_Ventilator
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 14: fan ON during every compressor run and OFF otherwise, except single-poll (<=2 min) OFF gaps during
+    runs consistent with the VenPause cycle (holding 23 raw 2). Association with the compressor is proven; the exact pause
+    pattern is not resolved at 120 s polling.'
+  confidence: medium
+  change_required: none
+- key: relay2_electric_heater
+  address: 10
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Electric heater relay
+  manual_display: Relay2_Elpatron
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 10: OFF for the entire 36 h window; power never exceeded ~694 W. Never observed ON, so the polarity/meaning
+    cannot be proven.'
+  confidence: low
+  change_required: none
+- key: relay3_boiler
+  address: 11
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Boiler relay
+  manual_display: Relay3_Kedel
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Always OFF; no installed-unit event exercises it. Never observed ON, no reference.
+  confidence: low
+  change_required: none
+- key: relay4_solenoid_valve
+  address: 12
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Solenoid valve relay
+  manual_display: Relay4_Magnetventil
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Always OFF; no installed-unit event exercises it. Never observed ON, no reference.
+  confidence: low
+  change_required: none
+- key: relay6_condenser
+  address: 13
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Condenser relay
+  manual_display: Relay6_Kondensator
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Always OFF; no installed-unit event exercises it. Never observed ON, no reference.
+  confidence: low
+  change_required: none
+- key: di1_pressure_switch
+  address: 0
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Pressure switch input
+  manual_display: DI1_Pressostat
+  manual_page: 35
+  observed_raw_snapshot: 1
+  status: PLAUSIBLE
+  evidence: 'FC04 input 0: ON continuously through idle, runs and all transitions with alarm word 0 and normal compressor
+    operation. A tripped high-pressure fault would stop the compressor, so ON is most plausibly ''contact closed / OK'', NOT
+    a fault. Not proven; wiring polarity unknown.'
+  confidence: medium
+  change_required: 'documentation only: describe ON as ''closed (OK, inferred)'''
+- key: di2_pv_input
+  address: 1
+  space: input
+  function_code: 4
+  decimals: 0
+  label: PV contact input
+  manual_display: DI2_Solcelle (PV)
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 1: OFF throughout; PV mode (holding 17) = 0; no PV contact wired as far as known.'
+  confidence: low
+  change_required: none
+- key: unit_alarm_bits
+  address: 18
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Unit alarm (binary word)
+  manual_display: Unit_Alarm
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 18: 0 for the whole window = no active alarm word. No bit table exists, so no decoding is justified
+    (word stays raw).'
+  confidence: medium
+  change_required: none (keep raw)
+- key: da0_output
+  address: 15
+  space: input
+  function_code: 4
+  decimals: 0
+  label: 0–10 V output (EC fan)
+  manual_display: DA0_0-10 V (nur für Installateur), (1000 = 10 V / 500 = 5 V), Für EC Lüfter
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 15: 0 throughout. 0-10 V output is for EC fans; installed unit has AC fan (holding 29 = 0 AC).'
+  confidence: medium
+  change_required: none
+- key: rest_days
+  address: 17
+  space: input
+  function_code: 4
+  decimals: 0
+  label: Remaining absence days
+  manual_display: Rest_Days
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: 'FC04 input 17: 0; consistent with holiday mode off (holding 20 = 0).'
+  confidence: low
+  change_required: none
+- key: t3
+  address: 19
+  space: input
+  function_code: 4
+  decimals: 1
+  label: Temperature T3
+  manual_display: T3
+  manual_page: 35
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: 'FC04 input 19: exactly 0.0 for the whole window while T1/T2 vary 5-56 C. Not behaving as a temperature: either
+    an unconnected/absent input reading 0 or a different quantity. Do not use as a temperature; do not infer a sentinel from
+    one value.'
+  confidence: medium
+  change_required: 'candidate: demote device_class/state_class (temperature/measurement) -> deferred, needs owner/manual confirmation'
+- key: fw_version
+  address: 119
+  space: input
+  function_code: 4
+  decimals: 1
+  label: Firmware version
+  manual_display: FW_Version
+  manual_page: 35
+  observed_raw_snapshot: 15
+  status: UNKNOWN
+  evidence: 'FC04 input 119 = 15 (decimals 1 in catalogue). Mapping to display ''Software VTxx'' (2023 manual: VT10; NUOS
+    II: VT12) unknown; 1.5 is not a VT number. Needs display reading.'
+  confidence: low
+  change_required: none
+- key: timer
+  address: 7
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Timer enabled
+  manual_display: 008.Timer
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: FC03 holding 7 = 0 (off). Consistent with start/stop 12:00/12:00 defaults.
+  confidence: low
+  change_required: none
+- key: start_hp_hour
+  address: 8
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Heat pump timer start hour
+  manual_display: 009.Start_HP_Hour
+  manual_page: 33
+  observed_raw_snapshot: 12
+  status: PLAUSIBLE
+  evidence: FC03 holding 8 = 12 on every poll; start-hour 12 with start minute 0, stop 12:00; consistent with the parameter
+    table, and inconsistent with T2 (T2 is input 8 = 55.5). Supports the register-space inference (parameters=holding, datapoints=input).
+    Display 'Start HP hour' not yet read.
+  confidence: medium
+  change_required: none
+- key: start_hp_min
+  address: 9
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Heat pump timer start minute
+  manual_display: 010.Start_HP_Min
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: Value consistent with documented range and with the start-hour pairing (12:00-12:00 default, timer off). No display
+    reference.
+  confidence: low
+  change_required: none
+- key: stop_hp_hour
+  address: 10
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Heat pump timer stop hour
+  manual_display: 011.Stop_HP_Hour
+  manual_page: 33
+  observed_raw_snapshot: 12
+  status: PLAUSIBLE
+  evidence: Value consistent with documented range and with the start-hour pairing (12:00-12:00 default, timer off). No display
+    reference.
+  confidence: low
+  change_required: none
+- key: stop_hp_min
+  address: 11
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Heat pump timer stop minute
+  manual_display: 012.Stop_HP_Min
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: Value consistent with documented range and with the start-hour pairing (12:00-12:00 default, timer off). No display
+    reference.
+  confidence: low
+  change_required: none
+- key: operating_mode
+  address: 12
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Operating mode
+  manual_display: 013.H_pump (betr.Art)
+  manual_page: 33
+  observed_raw_snapshot: 3
+  status: PLAUSIBLE
+  evidence: FC03 holding 12 = 3 (WP+EL). Heat pump runs, electric heater never seen ON; consistent with 'heat pump with electric
+    backup allowed'. Meaning of enumeration not independently confirmed; display 'Betr.Art' not read.
+  confidence: medium
+  change_required: none
+- key: t_soll
+  address: 4
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Hot water setpoint
+  manual_display: 005.T_soll
+  manual_page: 33
+  observed_raw_snapshot: 55
+  status: PLAUSIBLE
+  evidence: FC03 holding 4 = 55; tank heating cycles end at 55.9-56.0 C (T2). Consistent with a 55 C setpoint (+~1 K hysteresis/sensor
+    position). Display 'T Soll' not read.
+  confidence: medium
+  change_required: none
+- key: t_max
+  address: 28
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Maximum hot water temperature
+  manual_display: 029.T_max
+  manual_page: 34
+  observed_raw_snapshot: 55
+  status: PLAUSIBLE
+  evidence: FC03 holding 28 = 55; equals t_soll; only consistent, not independently confirmed.
+  confidence: low
+  change_required: none
+- key: t_min
+  address: 5
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Backup heater threshold (Tmin)
+  manual_display: 006.T_min
+  manual_page: 33
+  observed_raw_snapshot: 45
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: t2_min
+  address: 6
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Frost/absence threshold (T2 min)
+  manual_display: 007.T2_min
+  manual_page: 33
+  observed_raw_snapshot: 10
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: t_min_rl
+  address: 14
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: T min RL
+  manual_display: 015.T_min_RL
+  manual_page: 33
+  observed_raw_snapshot: 8
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: t_pv_wp
+  address: 18
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: PV setpoint heat pump
+  manual_display: 019.T.PV_WP
+  manual_page: 33
+  observed_raw_snapshot: 52
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: t_pv_el
+  address: 19
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: PV setpoint electric
+  manual_display: 020.T.PV_EL
+  manual_page: 33
+  observed_raw_snapshot: 53
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: legionella_auto_days
+  address: 33
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Legionella auto interval
+  manual_display: 034.Legionel_Auto_Funktion
+  manual_page: 34
+  observed_raw_snapshot: 7
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: absence_days
+  address: 21
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Absence days
+  manual_display: 022.Abw.Tage
+  manual_page: 33
+  observed_raw_snapshot: 1
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: holiday
+  address: 20
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Holiday mode
+  manual_display: 021.URLAUB
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: boost
+  address: 22
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Boost
+  manual_display: 023.BOOST
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: pv_mode
+  address: 17
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: PV / Smart Grid mode
+  manual_display: 018.PV_Modus
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: anode
+  address: 27
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Signal anode monitoring
+  manual_display: 028.Anode*
+  manual_page: 34
+  observed_raw_snapshot: 1
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: ec_ls1
+  address: 30
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: EC fan level 1
+  manual_display: 031.EC_LS1*
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: ec_ls2
+  address: 31
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: EC fan level 2
+  manual_display: 032.EC_LS2*
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: ec_ls3
+  address: 32
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: EC fan level 3
+  manual_display: 033.EC_LS3*
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: wp_ls
+  address: 15
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Fan speed in heat pump operation
+  manual_display: 016.WP_LS (FanOper)*
+  manual_page: 33
+  observed_raw_snapshot: 1
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: kwl
+  address: 16
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Standby (ventilation) fan mode
+  manual_display: 0.17.KWL (FanCon)*
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: fan_pause
+  address: 23
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Fan pause
+  manual_display: 024.VenPause*
+  manual_page: 33
+  observed_raw_snapshot: 2
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: language
+  address: 25
+  space: holding
+  function_code: 3
+  decimals: 2
+  label: Display language
+  manual_display: 026.Sprache
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: defrost_type
+  address: 26
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Defrost type
+  manual_display: 0.27.Abtauart
+  manual_page: 34
+  observed_raw_snapshot: 1
+  status: UNKNOWN
+  evidence: Value within the documented range; no independent reference on the installed VTC200. Raw/enum meaning from NUOS
+    II manual only.
+  confidence: low
+  change_required: none
+- key: t_legio
+  address: 13
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Legionella protection
+  manual_display: 014.T_Legio
+  manual_page: 33
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: FC03 holding 13 = 0 -> 'off'. This is the setting as read, NOT proof that legionella protection is absent or that
+    the unit has no thermal disinfection; auto interval (holding 33) = 7 d is present. Needs display 'T Legio'.
+  confidence: low
+  change_required: 'documentation: say ''setting reads off'''
+- key: fan_type
+  address: 29
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: Fan type
+  manual_display: 030.VrntTyp*
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: PLAUSIBLE
+  evidence: FC03 holding 29 = 0 -> AC; matches the installed AC-fan wiring (2023 manual p.24).
+  confidence: medium
+  change_required: none
+- key: rtc_second
+  address: 103
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 104.RTC_Sek
+  manual_display: 104.RTC_Sek
+  manual_page: 34
+  observed_raw_snapshot: 3
+  status: PROVEN
+  evidence: 'FC03 holding 103-105 advance in real time: hour rolls once per hour (observed 20-22 Oct, roll at ~hh:06), minute/second
+    free-run. The controller clock runs but is displaced from HA time by ~12 h and ~6 min (e.g. RTC 00:53 at HA ~12:59). Not
+    ''unset'': it is running at the wrong time.'
+  confidence: high
+  change_required: 'none (raw is correct); owner note: clock needs setting before any timer/legionella schedule is used'
+- key: rtc_minute
+  address: 104
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 105.RTC_Min
+  manual_display: 105.RTC_Min
+  manual_page: 34
+  observed_raw_snapshot: 53
+  status: PROVEN
+  evidence: 'FC03 holding 103-105 advance in real time: hour rolls once per hour (observed 20-22 Oct, roll at ~hh:06), minute/second
+    free-run. The controller clock runs but is displaced from HA time by ~12 h and ~6 min (e.g. RTC 00:53 at HA ~12:59). Not
+    ''unset'': it is running at the wrong time.'
+  confidence: high
+  change_required: 'none (raw is correct); owner note: clock needs setting before any timer/legionella schedule is used'
+- key: rtc_hour
+  address: 105
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 106.RTC_Stunden
+  manual_display: 106.RTC_Stunden
+  manual_page: 34
+  observed_raw_snapshot: 0
+  status: PROVEN
+  evidence: 'FC03 holding 103-105 advance in real time: hour rolls once per hour (observed 20-22 Oct, roll at ~hh:06), minute/second
+    free-run. The controller clock runs but is displaced from HA time by ~12 h and ~6 min (e.g. RTC 00:53 at HA ~12:59). Not
+    ''unset'': it is running at the wrong time.'
+  confidence: high
+  change_required: 'none (raw is correct); owner note: clock needs setting before any timer/legionella schedule is used'
+- key: rtc_weekday
+  address: 106
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 107.RTC_Tag
+  manual_display: 107.RTC_Tag
+  manual_page: 34
+  observed_raw_snapshot: 2
+  status: UNKNOWN
+  evidence: FC03 holding 106 = 2 at snapshot; weekday vs day-of-month and numbering base not documented. Not consistent with
+    the real date (Thursday).
+  confidence: low
+  change_required: none
+- key: rtc_date
+  address: 107
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 108.RTC_Datum
+  manual_display: 108.RTC_Datum
+  manual_page: 34
+  observed_raw_snapshot: 8
+  status: PLAUSIBLE
+  evidence: FC03 holding 107 = 8; does not match real day 22 -> RTC date not set to real date.
+  confidence: low
+  change_required: none
+- key: rtc_month
+  address: 108
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 109.RTC_Monat
+  manual_display: 109.RTC_Monat
+  manual_page: 34
+  observed_raw_snapshot: 2
+  status: PLAUSIBLE
+  evidence: FC03 holding 108 = 2; real month 10 -> not set.
+  confidence: low
+  change_required: none
+- key: rtc_year
+  address: 109
+  space: holding
+  function_code: 3
+  decimals: null
+  label: 110.RTC_Jahr
+  manual_display: 110.RTC_Jahr
+  manual_page: 34
+  observed_raw_snapshot: 2000
+  status: PLAUSIBLE
+  evidence: 'FC03 holding 109 = 2000: 4-digit year encoding; not the real year (2026). Clock date part not set; do NOT conclude
+    the whole RTC is unset (time-of-day runs).'
+  confidence: medium
+  change_required: none
+- key: modbus_address
+  address: 114
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: 115.Modbus Adresse 1-247
+  manual_display: 115.Modbus Adresse 1-247
+  manual_page: 34
+  observed_raw_snapshot: 1
+  status: PROVEN
+  evidence: FC03 holding 114 = 1 equals the unit id answering on the G13 (unit 1).
+  confidence: high
+  change_required: none
+- key: modbus_baud
+  address: 115
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: 116.Modbus Baudrate
+  manual_display: 116.Modbus Baudrate
+  manual_page: 34
+  observed_raw_snapshot: 1
+  status: PROVEN
+  evidence: FC03 holding 115 = 1 -> '19200' equals the G13 port 1 setting (19200); link works.
+  confidence: high
+  change_required: none
+- key: modbus_parity
+  address: 116
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: 117.Modbus Parität
+  manual_display: 117.Modbus Parität
+  manual_page: 34
+  observed_raw_snapshot: 2
+  status: PROVEN
+  evidence: FC03 holding 116 = 2 -> 'even' equals G13 port 1 8E1; link works.
+  confidence: high
+  change_required: none
+- key: modbus_allow_write
+  address: 117
+  space: holding
+  function_code: 3
+  decimals: 0
+  label: 118.Modbus Allow Write
+  manual_display: 118.Modbus Allow Write
+  manual_page: 34
+  observed_raw_snapshot: 1
+  status: PLAUSIBLE
+  evidence: 'FC03 holding 117 = 1 (write allowed on the device side). Informational only: NOT authority to write and no write
+    path exists in this integration.'
+  confidence: medium
+  change_required: none
+- key: raw_holding_8
+  address: 8
+  space: holding
+  function_code: 3
+  decimals: 1
+  label: Holding register 8 raw (unverified)
+  manual_display: null
+  manual_page: null
+  observed_raw_snapshot: null
+  status: PLAUSIBLE
+  evidence: Pilot diagnostic, FC03 address 8 = 12 on every poll since 2026-10-20; consistent with start_hp_hour (see above).
+    Remains an 'unverified' raw diagnostic.
+  confidence: medium
+  change_required: none
